@@ -13,6 +13,7 @@
 #include <ftxui/dom/direction.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/node.hpp>
+#include <ftxui/dom/selection.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <ftxui/dom/flexbox_config.hpp>
 #include <functional>
@@ -88,7 +89,12 @@ struct_user_data load_structure(){
 }
 
 
+/*
+    Reference to vm cloud config selector
+        - Requires restart to see new cloud config image
+*/
 
+std::shared_ptr<std::vector<std::string>> ref = {};
 
 /*
     Main menu section
@@ -302,6 +308,100 @@ int main() {
         
     });
 
+    /*
+        Manage VM Page
+    */
+
+    const auto add_vm_button = ftxui::Button("Add VM", [&]{current_selection = 21;}, ftxui::ButtonOption::Ascii());
+
+    const auto manage_vm_elements = [&]{
+        return ftxui::flexbox({
+            ftxui::vbox({
+                add_vm_button->Render(),
+            })
+        }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90);
+    };
+
+    const auto manage_vm_components = ftxui::Container::Vertical({
+        add_vm_button
+    });
+    /*
+        Add new VM
+    */
+
+
+    /*
+    Seperate Components
+    */
+
+    std::string vm_name;
+    int vm_cpu = 0;
+    int vm_memory = 0;
+    std::string primary_disk_size = "";
+
+    const auto vm_name_input = ftxui::Input(&vm_name, "VM Name", { .multiline = false, });
+    const auto vm_set_cpu = ftxui::Slider("Number of CPUs : ", &vm_cpu, 0, 40, 1);
+    const auto vm_set_memory = ftxui::Slider("Memory : ", &vm_memory, 1024, 80*1024, 1024);
+    const auto vm_disk_size_input = ftxui::Input(&primary_disk_size, "100 GB", { .multiline = false, });
+
+    const auto vm_cloud_config = ftxui::Dropdown()
+
+    const auto create_vm = ftxui::Button("Create VM", [&]{
+        
+    }, ftxui::ButtonOption::Ascii());
+
+    const auto back_vm_page = ftxui::Button("Back", [&]{
+        current_selection = 2;
+    }, ftxui::ButtonOption::Ascii());
+
+    const auto add_new_vm = [&]{
+        return ftxui::flexbox({
+            ftxui::flexbox({
+                ftxui::text("Add New VM.")
+            }) | ftxui::border,
+            vm_name_input->Render() | ftxui::border,
+            ftxui::flexbox({
+                vm_set_cpu->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 50),
+                ftxui::filler(),
+                ftxui::text(std::format("{} vCPUs ", vm_cpu)),
+            },{
+            }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 70) | ftxui::border ,
+            ftxui::flexbox({
+                vm_set_memory->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 50),
+                ftxui::filler(),
+                ftxui::text(std::format("Memory {} MB", vm_memory))
+            }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 70) | ftxui::border,
+             ftxui::flexbox({
+                vm_disk_size_input->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 50),
+                ftxui::text("GB"),
+                ftxui::filler(),
+            }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 70) | ftxui::border,
+             ftxui::flexbox({
+                vm_disk_size_input->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 50),
+                ftxui::text("GB"),
+                ftxui::filler(),
+            }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 70) | ftxui::border,
+            ftxui::flexbox({
+                create_vm->Render(),
+                ftxui::filler(),
+                back_vm_page->Render(),
+            },{
+                .align_content = ftxui::FlexboxConfig::AlignContent::SpaceBetween
+            })
+
+        },{
+                    .direction = ftxui::FlexboxConfig::Direction::Column,
+                    .align_items = ftxui::FlexboxConfig::AlignItems::Center,
+                    .align_content = ftxui::FlexboxConfig::AlignContent::SpaceBetween,
+        }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90) | ftxui::border;
+    };
+
+    const auto add_vm_components = ftxui::Container::Vertical({
+        vm_name_input,
+        vm_set_cpu,
+        vm_set_memory,
+        vm_disk_size_input
+    });
 
 
     /*
@@ -538,6 +638,14 @@ int main() {
 
     user_edit_base = ftxui::Renderer(user_edit_components, get_user_edit);
 
+    // vm management 
+
+    const auto vm_management_base = ftxui::Renderer(manage_vm_components, manage_vm_elements);
+
+    // vm add modal
+
+    const auto vm_add_modal_base = ftxui::Renderer(add_vm_components, add_new_vm);
+
     // ssh key edit component
 
     update_ssh_key_dynamic();
@@ -557,6 +665,8 @@ int main() {
                 ftxui::Maybe(main_menu_base, [&]{ return current_selection == -1;}),
                 ftxui::Maybe(user_edit_base, [&]{ return current_selection == 0;}),
                 ftxui::Maybe(ssh_key_edit_base, [&]{ return current_selection == 1;}),
+                ftxui::Maybe(vm_management_base, [&]{return current_selection == 2;}),
+                ftxui::Maybe(vm_add_modal_base, [&]{return current_selection == 21;})
                 // ssh_key_add_modal([]{}, []{}),
             });
 
