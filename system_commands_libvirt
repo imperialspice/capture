@@ -1,0 +1,52 @@
+## Create VM 
+
+virt-install \
+    --name %name%                   \
+    --description %description%     \
+    --ram=%ram%                     \
+    --vcpus=%cpus%                  \
+    --os-type=Linux                 \
+    --osinfo=linux2024              \
+    --disk path=size=%disk_size%,backing_store=%cloud_image_disk%,bus=virtio \
+    --graphics none                 \
+    --cloud-init user-data=%cloud_metadata%    \
+    --noautoconsole
+
+    // --network user //
+
+# Add to user config : vm : {"name": NAME, "state": STATE}
+# Add to user config : default_vm : NAME
+
+# Get current IP
+
+sudo virsh domifaddr Test1 | tail -n2 | head -n 1 | awk '{print $4}'
+
+# Force close VM 
+
+virsh destory NAME
+
+# Delete VM 
+
+virsh undefine NAME
+
+# Snapshot
+
+
+
+let current_vm_name_selection = 
+ellision functions to capture and perform actions as see fit
+
+
++-------------------------------------------------------+
+                    Manage VM
+        Name: VM_NAME
+
+        IP: +++.+++.+++.+++
+
+        Start | Restart | Shutdown | Force Shutdown | Set Default
+
+    Snapshot Create | Snapshot Revert | Snapshot Delete
+
+        Undefine VM Metadata | Undefine VM Force ( Disks )
+
+
