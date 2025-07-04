@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(server_capture)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 ## For some reason helps with headers not being found.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -18,7 +19,7 @@ FetchContent_MakeAvailable(ftxui)
 FetchContent_Declare(
     reflect_library
     GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-    GIT_TAG a70b4ec
+    GIT_TAG 907c815
 )
 FetchContent_MakeAvailable(reflect_library)
 

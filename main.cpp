@@ -1,6 +1,8 @@
-
 #include "main.hpp"
 
+#include "rfl.hpp"
+#include "rfl/json.hpp"
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -28,6 +30,51 @@
 #include <pwd.h>
 
 
+/*
+    Config variables
+*/
+
+std::string vm_create_template("virt-install \
+    --name {}                           \
+    --description {}                    \
+    --ram={}                            \
+    --vcpus={}                          \
+    --os-type=Linux                     \
+    --osinfo=linux2024                  \
+    --disk path=size={},backing_store={},bus=virtio \
+    --graphics none                     \
+    --cloud-init user-data={}           \
+    --noautoconsole"
+);
+
+std::string vm_cloud_config_template(R"(
+#cloud-config
+users:
+  - name: {}
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    shell: '/bin/bash'
+    ssh_authorized_keys:
+      - {}
+
+ssh_pwauth: false
+chpasswd:
+  expire: false
+  users:
+    - name: {}
+      password: '1'
+      type: text
+
+allow_public_ssh_keys: true
+disable_root: true)"
+);
+
+/*
+    Add cloud image to config file.
+*/
+
+void add_cloud_image(struct_user_data &user_data, std::string_view cloud_img_name, std::string_view cloud_image_path){
+    user_data.cloud_images.push_back(std::pair<std::string,std::string>(cloud_img_name, cloud_image_path));
+}
 
 
 std::string_view get_user_config_path(){
@@ -60,9 +107,9 @@ void save_structure(struct_user_data &user_data, ftxui::ScreenInteractive& scree
 }
 
 
-struct_user_data load_structure(){
-    std::filesystem::path config_file_path(get_user_config_path());
-    config_file_path.append("capture_config.json");
+struct_user_data load_structure(std::string_view directory_path, std::string_view file_name){
+    std::filesystem::path config_file_path(directory_path);
+    config_file_path.append(file_name);
     std::ifstream config_file(config_file_path);
     
 
@@ -82,19 +129,35 @@ struct_user_data load_structure(){
         getlogin_r(tmp, 100);
         user_data.username = std::string(tmp);
         user_data.name = std::string(tmp);
+        add_cloud_image(user_data, "ubuntu_debian", std::filesystem::path(directory_path).append("ubuntu_image.img").string());
         return user_data;
     }
-
-
 }
+
+
+
 
 
 /*
     Reference to vm cloud config selector
         - Requires restart to see new cloud config image
 */
+int vm_cloud_selector = 0;
+std::vector<std::string> vm_cloud_ref = {};
+std::vector<std::string> vm_cloud_image_path = {};
 
-std::shared_ptr<std::vector<std::string>> ref = {};
+
+void set_vm_cloud_ref_and_path(struct_user_data &user_data){
+    vm_cloud_ref.clear();
+    vm_cloud_image_path.clear();
+
+    for(auto i : user_data.cloud_images){
+
+        vm_cloud_ref.push_back(i.first);
+        vm_cloud_image_path.push_back(i.second);
+
+    }
+}
 
 /*
     Main menu section
@@ -160,6 +223,8 @@ void selector_function(){
 */
 
 bool bool_show_events_modal = true;
+// events modal component
+std::string current_error_message;
 
 ftxui::Component events_modal(std::string &text_to_display, std::function<void()> exit_modal){
     // Components Layout
@@ -193,15 +258,73 @@ bool bool_show_add_ssh_key_modal = false;
 
 bool bool_update_components = false;
 
+/*
+    Open, Execute and Read from a command
+*/
 
+int current_command_result;
+std::string current_command_output;
+
+void open_execute_read(std::string command){
+    std::array<char, 256> buffer;
+    std::string result;
+
+    FILE* pipe = popen(command.c_str(), "r");
+    if(!pipe)
+    {
+        current_command_output = "";
+        current_command_result = -1;
+        return;
+    }
+    
+    while (fgets(buffer.data(), 256, pipe) != NULL){
+        result += buffer.data();
+    }
+    int return_code = pclose(pipe);
+
+    current_command_output = result;
+    current_command_result = return_code;
+    return;
+}
+
+
+void create_vm_function(struct_user_data user_data, std::string create_vm_command, std::string tmp_cloud_config_text, std::string &current_error_message, std::string tmp_config_path){
+        // run create vm, 
+        // run virt-install and save results in config file...
+
+       
+
+        // tmp cloud config file.
+        std::ofstream tmp_cloud_config(tmp_config_path);
+        tmp_cloud_config << tmp_cloud_config_text;
+
+        // temp config path injection
+
+        open_execute_read(create_vm_command);
+        // if command failed then put error up and log result?
+        if(current_command_result != 0){
+            bool_show_events_modal = true;
+            current_error_message = "VM Creation failed : " + current_command_output;
+        }
+        // save current config into file.
+        else{
+
+        }
+}
 
 int main() {
 
 
-    struct_user_data user_data = load_structure();
+    struct_user_data user_data = load_structure(get_user_config_path(), "capture_config.json");
 
     // manage the screen object
     ftxui::ScreenInteractive screen = ftxui::ScreenInteractive::TerminalOutput();
+
+    /*
+        Get component data from the config file.
+    */
+
+    set_vm_cloud_ref_and_path(user_data);
 
     /*
         Navigation Buttons
@@ -313,17 +436,27 @@ int main() {
     */
 
     const auto add_vm_button = ftxui::Button("Add VM", [&]{current_selection = 21;}, ftxui::ButtonOption::Ascii());
-
+    
+    
     const auto manage_vm_elements = [&]{
         return ftxui::flexbox({
-            ftxui::vbox({
-                add_vm_button->Render(),
-            })
+            ftxui::flexbox({ 
+                    add_vm_button->Render(),
+                    ftxui::filler(),
+                    back_button->Render()
+                },{
+                    .direction = ftxui::FlexboxConfig::Direction::Row,
+                    .align_items = ftxui::FlexboxConfig::AlignItems::Center,
+                    .align_content = ftxui::FlexboxConfig::AlignContent::SpaceBetween,
+                }) | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90),
         }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90);
     };
 
     const auto manage_vm_components = ftxui::Container::Vertical({
-        add_vm_button
+        ftxui::Container::Horizontal({
+        add_vm_button,
+        back_button
+        })
     });
     /*
         Add new VM
@@ -344,10 +477,18 @@ int main() {
     const auto vm_set_memory = ftxui::Slider("Memory : ", &vm_memory, 1024, 80*1024, 1024);
     const auto vm_disk_size_input = ftxui::Input(&primary_disk_size, "100 GB", { .multiline = false, });
 
-    const auto vm_cloud_config = ftxui::Dropdown()
+    const auto vm_cloud_config = ftxui::Dropdown(&vm_cloud_ref, &vm_cloud_selector);
 
     const auto create_vm = ftxui::Button("Create VM", [&]{
         
+        
+        std::string tmp_config_path("/tmp/cloud_config.tmp." + std::to_string(rand()));
+        std::string vm_cloud_config = std::format(vm_cloud_config_template, user_data.username, user_data.public_keys.at(0).key, user_data.username);
+        std::string vm_create_command_text = std::format(vm_create_template, vm_name, "Auto Created VM", vm_memory, vm_cpu, primary_disk_size, vm_cloud_image_path[vm_cloud_selector], tmp_config_path);
+
+        create_vm_function(user_data, vm_create_command_text, vm_cloud_config, current_error_message, tmp_config_path);
+
+
     }, ftxui::ButtonOption::Ascii());
 
     const auto back_vm_page = ftxui::Button("Back", [&]{
@@ -358,7 +499,7 @@ int main() {
         return ftxui::flexbox({
             ftxui::flexbox({
                 ftxui::text("Add New VM.")
-            }) | ftxui::border,
+            }),
             vm_name_input->Render() | ftxui::border,
             ftxui::flexbox({
                 vm_set_cpu->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 50),
@@ -377,8 +518,7 @@ int main() {
                 ftxui::filler(),
             }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 70) | ftxui::border,
              ftxui::flexbox({
-                vm_disk_size_input->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 50),
-                ftxui::text("GB"),
+                vm_cloud_config->Render() | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 50),
                 ftxui::filler(),
             }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 70) | ftxui::border,
             ftxui::flexbox({
@@ -400,7 +540,12 @@ int main() {
         vm_name_input,
         vm_set_cpu,
         vm_set_memory,
-        vm_disk_size_input
+        vm_disk_size_input,
+        vm_cloud_config,
+        ftxui::Container::Horizontal({
+            create_vm,
+            back_vm_page
+        })
     });
 
 
@@ -650,8 +795,7 @@ int main() {
 
     update_ssh_key_dynamic();
 
-    // events modal component
-    std::string current_error_message;
+
  
 
     auto show_events_modal = [&]{bool_show_events_modal = true; };

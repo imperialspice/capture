@@ -1,15 +1,15 @@
 ## Create VM 
 
 virt-install \
-    --name %name%                   \
-    --description %description%     \
-    --ram=%ram%                     \
-    --vcpus=%cpus%                  \
-    --os-type=Linux                 \
-    --osinfo=linux2024              \
-    --disk path=size=%disk_size%,backing_store=%cloud_image_disk%,bus=virtio \
-    --graphics none                 \
-    --cloud-init user-data=%cloud_metadata%    \
+    --name {}                           \
+    --description {}                    \
+    --ram={}                            \
+    --vcpus={}                          \
+    --os-type=Linux                     \
+    --osinfo=linux2024                  \
+    --disk path=size={},backing_store={},bus=virtio \
+    --graphics none                     \
+    --cloud-init user-data={}           \
     --noautoconsole
 
     // --network user //
