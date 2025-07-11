@@ -1,6 +1,13 @@
 
+#include "rfl.hpp"
+#include "rfl/json.hpp"
 #include <vector>
 #include <string>
+
+
+/*
+    Config variables
+*/
 
 
 /*
@@ -8,9 +15,26 @@
 */
 std::vector<std::string> log_vector;
 
+
+/*
+ Cloud Selector
+
+*/
+
+
+/*
+    Structures
+*/
 struct ssh_key{
     std::string name;
     std::string key;
+};
+
+struct virtual_machine{
+    std::string name;
+    std::string uuid;
+    bool autostart;
+    std::string ip;
 };
 
 // read only struct, not write safe?
@@ -18,7 +42,7 @@ struct struct_user_data {
     std::string name;
     std::string vm_ssh_address;
     std::string username;
-    std::vector<std::string> virtual_machines;
+    std::vector<virtual_machine> virtual_machines;
     std::vector<ssh_key> public_keys;
     std::vector<std::pair<std::string, std::string>> cloud_images;
 };
