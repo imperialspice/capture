@@ -1,5 +1,6 @@
 #include "main.hpp"
 
+#include <sys/poll.h>
 #include <sys/unistd.h>
 #include <sys/fcntl.h>
 #include <csignal>
@@ -36,7 +37,7 @@
 
 // write log out and exit 
 void flush_log(){
-    std::filesystem::path logfile_file_path(get_user_config_path());
+    std::filesystem::path logfile_file_path("/tmp");
     logfile_file_path.append(std::format("capture_logfile_{}.log", rand()));
     std::ofstream log_file(logfile_file_path);
     if(log_file){
@@ -349,7 +350,7 @@ void open_execute_read(std::string command, bool capture_stderr = true){
     if(pipe(pfds) < 0){ current_command_result = -1; return; }
     
     if(is_capturing_stderr){
-        command.append(command + std::format(" 2>&{}", pfds[1]));
+        command = command + std::format(" 2>&{}", pfds[1]);
     }
     
     fcntl(pfds[0], F_SETFL, O_NONBLOCK);
@@ -371,61 +372,66 @@ void open_execute_read(std::string command, bool capture_stderr = true){
     }
     
 
-    fd_set fileio_list;
-    int fdmax;
 
-    FD_ZERO(&fileio_list);
+
     struct timeval timeout{1, 0};
+    struct pollfd fds[2];
+
+    fds[0].fd = pfds[0];
+    fds[0].events = POLLIN;
+
+    fds[1].fd = fileno(pipe);
+    fds[1].events = POLLIN;
 
 
-    FD_SET(pfds[0], &fileio_list);
-    FD_SET(fileno(pipe), &fileio_list);
-
-    fdmax = fileno(pipe) > pfds[0] ? fileno(pipe) : pfds[0];
 
     int captured_data = 0;
-    while(captured_data < 6){
+    while(captured_data < 50){
 
-        if(select(fdmax+1, &fileio_list, NULL, NULL, &timeout) == -1){
+        if(poll(fds,2, 2000) == -1){
             perror("Select has crashed...");
             break;
         }
 
-        if(FD_ISSET(fileno(pipe), &fileio_list)){
+        if(fds[1].revents & POLLIN){
             int read_len = 0;
-            std::string tmp; 
-            while((read_len = read(fileno(pipe), buffer.data(), 255)) != 0){
+            while((read_len = read(fileno(pipe), buffer.data(), 255)) > 0){
+                std::string tmp; 
                 tmp.append(buffer.data(), read_len);
-            }
-            if(read_len == 0){
-                log_vector.push_back(strerror(errno));
-                captured_data++;
-            }
-            else{
                 tmp.erase(std::remove(tmp.begin(), tmp.end(), '\n'), tmp.end());
                 current_command_output.append(tmp);
             }
-            
+            if(read_len == 0){
+                captured_data++;
+            }
+            else{
+                log_vector.push_back("stdout socket with -1 read condition.");
+                log_vector.push_back("Error Number is " + std::to_string(errno));
+                log_vector.push_back(strerror(errno));
+            }
+
         }
         else{
             captured_data++;
         }
 
-        if(FD_ISSET(fileno(perr), &fileio_list)){
+        if(fds[0].revents & POLLIN){
             int read_len = 0;
-            std::string tmp; 
-            while((read_len = read(fileno(perr), buffer.data(), 255)) != 0){
+            
+            while((read_len = read(fileno(perr), buffer.data(), 255)) > 0){
+                std::string tmp; 
                 tmp.append(buffer.data(), read_len);
-            }
-            if(read_len == 0){
-                log_vector.push_back(strerror(errno));
-                captured_data++;
-            }
-            else{
                 tmp.erase(std::remove(tmp.begin(), tmp.end(), '\n'), tmp.end());
                 current_command_err.append(tmp);
             }
-            
+            if(read_len == 0){
+                captured_data++;
+            }
+            else{
+                log_vector.push_back("err socket with -1 read condition.");
+                log_vector.push_back("Error Number is " + std::to_string(errno));
+                log_vector.push_back(strerror(errno));
+            }
         }
         else{
             captured_data++;
@@ -439,7 +445,7 @@ void open_execute_read(std::string command, bool capture_stderr = true){
 
     int return_code = pclose(pipe);
     current_command_result = return_code;
-
+    log_vector.push_back("result returned with status code: " + std::to_string(current_command_result));
     log_vector.push_back("results where: \n" + current_command_output);
     log_vector.push_back("results err where: \n" + current_command_err);
 
@@ -1408,7 +1414,7 @@ int main() {
     ftxui::Loop loop = ftxui::Loop(&screen, test);
 
     while (!loop.HasQuitted()) {
-        loop.RunOnceBlocking();
+        
         if(bool_update_components){
             get_ssh_edit_components(ssh_key_dynamic_list);
             update_vm_components(vm_edit_components);
@@ -1431,6 +1437,7 @@ int main() {
             // std::cout << "Press any key to refresh the screen." << std::flush;
         }
         
+        loop.RunOnceBlocking();
         /*
             Call out of line updating functions?
         */
