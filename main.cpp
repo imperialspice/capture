@@ -687,7 +687,7 @@ int main() {
     std::vector<std::string> network_options = {
         "Default - Default networking options.",
     "None - Only accessible through console.",
-        "Userland - Connect directly from machine.",
+    "Shared Machine Connection - Connect to other vms and directly from the host.",
     "Network - Connect to Network Bridge - LAN ACCESS."
     };
 
@@ -718,7 +718,7 @@ int main() {
             vm_create_command_text += " --network none";
         }
         else if (network_options_selection == 2){
-            vm_create_command_text += " --network user";
+            vm_create_command_text += " --network bridge=virbr0";
         }
         else if (network_options_selection == 3){
             vm_create_command_text += " --network bridge=br0";
