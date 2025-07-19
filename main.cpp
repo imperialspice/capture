@@ -74,12 +74,9 @@ users:
 
 ssh_pwauth: false
 chpasswd:
-  expire: false
+  expire: true
   users:
-    - name: {}
-      password: '1'
-      type: text
-
+    - {{name: {}, password: newpassword, type: text}}
 allow_public_ssh_keys: true
 disable_root: true)";
 
@@ -462,6 +459,8 @@ void create_vm_function(struct_user_data &user_data, std::string create_vm_comma
         // tmp cloud config file.
         std::ofstream tmp_cloud_config(tmp_config_path);
         tmp_cloud_config << tmp_cloud_config_text;
+        tmp_cloud_config.flush();
+        tmp_cloud_config.close();
 
         // temp config path injection
 
@@ -921,6 +920,8 @@ int main() {
                 ftxui::Container::Horizontal({
                 console_vm, start_vm, stop_vm, edit_vm}), 
                 [=]{
+                    if(bool_update_components) return ftxui::vbox({});
+
                     return ftxui::vbox({
                     ftxui::flexbox({
                         ftxui::text(it->name),
