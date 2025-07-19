@@ -513,7 +513,7 @@ int main() {
 
     // manage the screen object
     // ftxui::ScreenInteractive screen = ftxui::ScreenInteractive::TerminalOutput();
-    ftxui::ScreenInteractive screen = ftxui::ScreenInteractive::TerminalOutput();
+    ftxui::ScreenInteractive screen = ftxui::ScreenInteractive::Fullscreen();
     screen.TrackMouse(false);
 
 
@@ -974,16 +974,25 @@ int main() {
             
          
             auto modal_text = [local_name, local_key, frame_position, button](){    
-                return (ftxui::flexbox({
-                    ftxui::text(local_name),
-                    ftxui::filler(),
-                    ftxui::text(local_key),
-                    ftxui::filler(),
-                    button->Render()
-                },{
-                    .direction = ftxui::FlexboxConfig::Direction::Row,
-                    .align_content = ftxui::FlexboxConfig::AlignContent::SpaceBetween
-                })| ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90));
+                return
+                    ftxui::vbox({
+                        ftxui::flexbox({
+                            ftxui::text(local_name),
+                            ftxui::filler(),
+                            button->Render(),
+                        },{
+                            .direction = ftxui::FlexboxConfig::Direction::Row,
+                            .align_content = ftxui::FlexboxConfig::AlignContent::SpaceBetween
+                        })| ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90),
+                        ftxui::flexbox({
+                            ftxui::text(local_key),
+                            ftxui::filler(),
+                        },{
+                            .direction = ftxui::FlexboxConfig::Direction::Row,
+                            .align_content = ftxui::FlexboxConfig::AlignContent::SpaceBetween
+                        })| ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90),
+                        ftxui::separatorDashed(),
+                    });
             };
 
             // ssh_edit_elements.push_back(modal_text());
@@ -1252,7 +1261,7 @@ int main() {
                 },{
                     .direction = ftxui::FlexboxConfig::Direction::Row,
                     .align_content = ftxui::FlexboxConfig::AlignContent::FlexEnd
-                }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90),
+                }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90) | ftxui::border,
             ftxui::separatorEmpty(),
             ftxui::flexbox({
                 ftxui::vbox({
@@ -1334,7 +1343,7 @@ int main() {
             .direction = ftxui::FlexboxConfig::Direction::Column,
             .align_items = ftxui::FlexboxConfig::AlignItems::Stretch,
             .align_content = ftxui::FlexboxConfig::AlignContent::FlexStart
-        }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 90) | ftxui::border;
+        }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90) | ftxui::size(ftxui::HEIGHT, ftxui::GREATER_THAN, 90);
     };
 
     // current vm management
