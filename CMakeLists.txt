@@ -12,6 +12,7 @@ include(FetchContent)
 FetchContent_Declare(ftxui
   GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
   GIT_TAG v6.1.9
+  PATCH_COMMAND patch -x1 -uN -p1 -d ${CMAKE_BINARY_DIR}/_deps/ftxui-src < ${CMAKE_SOURCE_DIR}/ftxui.patch
 )
 FetchContent_MakeAvailable(ftxui)
 

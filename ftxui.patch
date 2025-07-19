@@ -1,0 +1,59 @@
+diff --git a/include/ftxui/component/screen_interactive.hpp b/include/ftxui/component/screen_interactive.hpp
+index a2909fc..df998e5 100644
+--- a/include/ftxui/component/screen_interactive.hpp
++++ b/include/ftxui/component/screen_interactive.hpp
+@@ -29,6 +29,11 @@ class ScreenInteractivePrivate;
+ 
+ class ScreenInteractive : public Screen {
+  public:
++
++  // Pause Interaction
++  std::mutex pause_interact;
++
++  
+   // Constructors:
+   static ScreenInteractive FixedSize(int dimx, int dimy);
+   static ScreenInteractive Fullscreen();
+diff --git a/src/ftxui/component/screen_interactive.cpp b/src/ftxui/component/screen_interactive.cpp
+index 77d164a..e47466b 100644
+--- a/src/ftxui/component/screen_interactive.cpp
++++ b/src/ftxui/component/screen_interactive.cpp
+@@ -15,6 +15,7 @@
+ #include <initializer_list>  // for initializer_list
+ #include <iostream>  // for cout, ostream, operator<<, basic_ostream, endl, flush
+ #include <memory>
++#include <mutex>
+ #include <stack>  // for stack
+ #include <string>
+ #include <thread>       // for thread, sleep_for
+@@ -172,10 +173,16 @@ int CheckStdinReady(int usec_timeout) {
+ }
+ 
+ // Read char from the terminal.
+-void EventListener(std::atomic<bool>* quit, Sender<Task> out) {
++void EventListener(std::atomic<bool>* quit, std::mutex &pause, Sender<Task> out) {
+   auto parser = TerminalInputParser(std::move(out));
+ 
+   while (!*quit) {
++    // std::unique_lock<std::mutex> mutex_pause(pause);
++    // mutex_pause.unlock();
++
++    pause.lock();
++    pause.unlock();
++    
+     if (!CheckStdinReady(timeout_microseconds)) {
+       parser.Timeout(timeout_milliseconds);
+       continue;
+@@ -730,9 +737,11 @@ void ScreenInteractive::Install() {
+   Flush();
+ 
+   quit_ = false;
++  
++
+   task_sender_ = task_receiver_->MakeSender();
+   event_listener_ =
+-      std::thread(&EventListener, &quit_, task_receiver_->MakeSender());
++      std::thread(&EventListener, &quit_, std::ref(pause_interact), task_receiver_->MakeSender());
+   animation_listener_ =
+       std::thread(&AnimationListener, &quit_, task_receiver_->MakeSender());
+ }
