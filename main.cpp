@@ -150,6 +150,40 @@ void save_structure(struct_user_data &user_data, ftxui::ScreenInteractive& scree
     }
 }
 
+
+struct_general_config load_general_config(std::string_view directory_path, std::string_view file_name){
+    
+    // try and open general config in the same directory and then check if in installed path
+    std::filesystem::path local_config_file_path("./"); local_config_file_path.append(file_name);
+    std::filesystem::path config_file_path(directory_path); config_file_path.append(file_name);
+    std::ifstream config_file;
+
+    if(std::filesystem::exists(local_config_file_path)){
+        config_file.open(local_config_file_path);    
+    }
+    else if(std::filesystem::exists(config_file_path)){
+        config_file.open(config_file_path);
+    }
+      
+    if(config_file){
+        std::stringstream buffer;
+        buffer << config_file.rdbuf();
+        config_file.close();
+        auto data = rfl::json::read<struct_general_config>(buffer.str());
+        struct_general_config config = std::move(data.value());
+        return config;
+    }
+    else{
+        std::cerr << "Missing general config file... Creating" << std::flush;
+        struct_general_config config{};
+
+        config.version = 1;
+        config.default_image_path = "/opt/disks";
+        config.search_directory = true;
+        return config;
+    }
+}
+
 struct_user_data load_structure(std::string_view directory_path, std::string_view file_name){
     std::filesystem::path config_file_path(directory_path);
     config_file_path.append(file_name);
@@ -196,15 +230,18 @@ std::vector<std::string> vm_cloud_image_path = {};
 std::vector<std::string> vm_ssh_key_names; // updated when creating vm_create view.
 int vm_ssh_key_selector;
 
-void set_vm_cloud_ref_and_path(struct_user_data &user_data){
+/*
+
+*/
+void set_vm_cloud_ref_and_path(struct_general_config &general_config){
     vm_cloud_ref.clear();
     vm_cloud_image_path.clear();
 
-    for(auto i : user_data.cloud_images){
-
-        vm_cloud_ref.push_back(i.first);
-        vm_cloud_image_path.push_back(i.second);
-
+    for (const auto &disk : std::filesystem::directory_iterator(general_config.default_image_path)){
+        if(disk.path().extension() == ".img" || disk.path().extension() == ".iso") {
+            vm_cloud_ref.push_back(disk.path().stem());
+            vm_cloud_image_path.push_back(disk.path());    
+        }
     }
 }
 
@@ -507,7 +544,7 @@ int main() {
 
     signal(SIGTERM, capture_flush_log);
 
-    
+    struct_general_config general_config = load_general_config("/etc", "capture.conf");
     struct_user_data user_data = load_structure(get_user_config_path(), "capture_config.json");
 
     // manage the screen object
@@ -520,7 +557,7 @@ int main() {
         Get component data from the config file.
     */
 
-    set_vm_cloud_ref_and_path(user_data);
+    set_vm_cloud_ref_and_path(general_config);
 
     /*
         Navigation Buttons

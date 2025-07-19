@@ -25,6 +25,14 @@ std::vector<std::string> log_vector;
 /*
     Structures
 */
+
+struct struct_general_config{
+    int version;
+    std::string default_image_path;
+    bool search_directory;
+};
+
+
 struct ssh_key{
     std::string name;
     std::string key;
@@ -37,7 +45,6 @@ struct virtual_machine{
     std::string ip;
 };
 
-// read only struct, not write safe?
 struct struct_user_data {
     std::string name;
     std::string vm_ssh_address;
@@ -46,6 +53,7 @@ struct struct_user_data {
     std::vector<ssh_key> public_keys;
     std::vector<std::pair<std::string, std::string>> cloud_images;
 };
+
 
 
 std::string_view get_user_config_path();
