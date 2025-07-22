@@ -572,7 +572,7 @@ int main() {
     };
 
     const auto get_test_button = [&]{
-        return ftxui::Button("Test", [&]{bool_show_events_modal = true;}, ftxui::ButtonOption::Ascii());
+        return ftxui::Button("Launch Local Shell", [&]{bool_launch_system_execution = true; launch_system_execution_path = "/bin/bash"; }, ftxui::ButtonOption::Ascii());
     };
 
     const auto get_back_button = [&]{
