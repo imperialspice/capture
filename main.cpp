@@ -81,7 +81,7 @@ allow_public_ssh_keys: true
 disable_root: true)";
 
 std::string vm_get_current_state = R"(virsh dominfo {} 2>/dev/null | grep State | awk '{{for (i = 2; i <= NF; i++) {{printf "%s ", $i}}; printf "\n"}}')";
-
+std::string podman_add_remote = R"(podman system connection add [my-remote-machine] --identity [your private key] ssh://[username]@[server_ip]{})";
 
 
 /*
@@ -231,12 +231,12 @@ std::vector<std::string> vm_ssh_key_names; // updated when creating vm_create vi
 int vm_ssh_key_selector;
 
 /*
-
+    Collect info about the current cloud images and paths
 */
 void set_vm_cloud_ref_and_path(struct_general_config &general_config){
     vm_cloud_ref.clear();
     vm_cloud_image_path.clear();
-
+    if(!std::filesystem::exists(general_config.default_image_path)) return;
     for (const auto &disk : std::filesystem::directory_iterator(general_config.default_image_path)){
         if(disk.path().extension() == ".img" || disk.path().extension() == ".iso") {
             vm_cloud_ref.push_back(disk.path().stem());
@@ -251,7 +251,8 @@ void set_vm_cloud_ref_and_path(struct_general_config &general_config){
 std::vector<std::string> main_menu_entries = {
     "Edit Personal Information",
     "Manage SSH Keys",
-    "Manage Virtual Machines"
+    "Manage Virtual Machines",
+    "Manage Containers"
 };
 
 /*
@@ -708,6 +709,140 @@ int main() {
         }),
         vm_edit_components
     });
+
+    /*
+        Manage Containers
+    */
+    const auto enable_containers = ftxui::Button("Enable Containers", [&]{
+        open_execute_read("loginctl enable-linger");
+        open_execute_read("systemctl --user enable podman.sock");
+        open_execute_read("systemctl --user start podman.sock");
+        user_data.containers_enabled = true;
+        bool_update_components = true;
+        return;
+    }, ftxui::ButtonOption::Ascii());
+    
+    const auto disable_containers = ftxui::Button("Disable Containers", [&]{
+        user_data.containers_enabled = false;
+
+        bool_update_components = true;
+        return;
+    }, ftxui::ButtonOption::Ascii());
+    
+    const auto manage_containers = ftxui::Container::Vertical({});
+
+    const auto manage_container_elements = [&]{
+        return ftxui::flexbox({
+            ftxui::flexbox({ 
+                    enable_containers->Render(),
+                    disable_containers->Render(),
+                    ftxui::filler(),
+                    back_button->Render()
+                },{
+                    .direction = ftxui::FlexboxConfig::Direction::Row,
+                    .align_items = ftxui::FlexboxConfig::AlignItems::Center,
+                    .align_content = ftxui::FlexboxConfig::AlignContent::SpaceBetween,
+                }) | ftxui::border | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90),
+                ftxui::separatorEmpty(),
+                manage_containers->Render(),
+
+        }, {
+            .direction = ftxui::FlexboxConfig::Direction::Column,
+            .align_items = ftxui::FlexboxConfig::AlignItems::FlexStart
+        });
+    };
+
+    const auto manage_container_components = ftxui::Container::Vertical({
+        ftxui::Container::Horizontal({
+            enable_containers, 
+            disable_containers, 
+            back_button,
+        }),
+        manage_containers
+    });
+
+    const auto function_enable_containers = [&]{
+        open_execute_read("podman info | grep sock | cut -d':' -f2 | xargs");
+        std::string container_command = current_command_output;
+        user_data.container_path = current_command_output;
+    };
+
+    const auto update_container_framework = [&](ftxui::Component manage_containers){
+        log_vector.push_back("Container Framework Update");
+        manage_containers->DetachAllChildren();
+        // check if containers have been enabled
+        if(user_data.containers_enabled){
+            std::string formated_add = std::vformat(podman_add_remote, std::make_format_args(user_data.container_path));
+            manage_containers->Add(ftxui::Renderer(ftxui::Container::Horizontal({}),
+            [&]{
+                return ftxui::vbox({
+                    ftxui::text("Containers Enabled"),
+                    ftxui::text("Socket path:"),
+                    ftxui::text(user_data.container_path),
+                    ftxui::text("This can be used in the podman system connection add command to add a container runtime."),
+                    ftxui::text(formated_add)
+                });
+            }));
+        }
+        else{
+            manage_containers->Add(ftxui::Renderer(
+                ftxui::Container::Horizontal({
+                }),
+                [&]{
+                    return ftxui::vbox({
+                        ftxui::text("Container Management"),
+                        ftxui::separatorEmpty(),
+                        ftxui::text("Please enable container management")
+                    });
+                }
+            ));
+        }
+        
+        
+        
+        // for(auto it = user_data.virtual_machines.begin(); it != user_data.virtual_machines.end(); ++it){
+            
+        //     auto start_vm = ftxui::Button("Start", [it]{ open_execute_read("virsh start " + it->uuid); bool_update_components = true;}, ftxui::ButtonOption::Ascii());
+        //     auto stop_vm = ftxui::Button("Stop", [it]{ open_execute_read("virsh shutdown " + it->uuid); bool_update_components = true;}, ftxui::ButtonOption::Ascii());
+        //     auto edit_vm = ftxui::Button("Edit", [it]{ current_vm = it.base(); current_selection = 22;}, ftxui::ButtonOption::Ascii());
+        //     auto console_vm = ftxui::Button("Console", [launch_console, it]{
+        //         std::string cmd = std::vformat(launch_console, std::make_format_args(it->uuid));
+        //         bool_launch_system_execution = true;
+        //         launch_system_execution_path = cmd;
+        //     }, ftxui::ButtonOption::Ascii());
+
+        //     // get current state information, like if things are running or not.
+            
+        //     std::string formated_command = std::vformat(vm_get_current_state, std::make_format_args(it->uuid));
+        //     open_execute_read(formated_command, false);
+        //     std::string current_state = current_command_output;
+
+
+        //     // text is contained with the button
+        //     vm_edit_components->Add(ftxui::Renderer(
+        //         ftxui::Container::Horizontal({
+        //         console_vm, start_vm, stop_vm, edit_vm}), 
+        //         [=]{
+        //             if(bool_update_components) return ftxui::vbox({});
+
+        //             return ftxui::vbox({
+        //             ftxui::flexbox({
+        //                 ftxui::text(it->name),
+        //                 ftxui::filler(),
+        //                 ftxui::text(current_state),
+        //                 ftxui::filler(),
+        //                 console_vm->Render(),
+        //                 start_vm->Render(),
+        //                 stop_vm->Render(),
+        //                 edit_vm->Render()
+        //                 }) | ftxui::size(ftxui::WIDTH, ftxui::GREATER_THAN, 90),
+        //             ftxui::separatorDashed()
+        //             });
+                    
+        //         })
+        //     );
+        // }
+    };
     /*
         Add new VM
     */
@@ -889,6 +1024,7 @@ int main() {
     ftxui::Component name_field = ftxui::Input(&user_data.name, "John Smith", {
         .multiline = false,
     });
+
     ftxui::Component username_field = ftxui::Input(&user_data.username, "jsmith", {
         .multiline = false,
     });
@@ -1387,7 +1523,6 @@ int main() {
     // current vm management
     current_vm_manage_base = ftxui::Renderer(current_vm_manage, current_vm_elements);
 
-
     // ftxui::Render(screen, document);
     
     main_menu_base = ftxui::Renderer(main_menu_components, main_menu_elements);
@@ -1395,6 +1530,10 @@ int main() {
     // user edit component
 
     user_edit_base = ftxui::Renderer(user_edit_components, get_user_edit);
+
+    // manage containers 
+
+    const auto container_manage_base = ftxui::Renderer(manage_container_components, manage_container_elements);
 
     // vm management 
 
@@ -1412,6 +1551,8 @@ int main() {
 
     update_vm_components(vm_edit_components);
 
+    // Manage Containers
+
     auto show_events_modal = [&]{bool_show_events_modal = true; };
     auto exit_events_modal = [&]{bool_show_events_modal = false; };
 
@@ -1425,7 +1566,8 @@ int main() {
                 ftxui::Maybe(ssh_key_edit_base, [&]{ return current_selection == 1;}),
                 ftxui::Maybe(vm_management_base, [&]{return current_selection == 2;}),
                 ftxui::Maybe(vm_add_modal_base, [&]{return current_selection == 21;}),
-                ftxui::Maybe(current_vm_manage_base, [&]{return current_selection == 22;})
+                ftxui::Maybe(current_vm_manage_base, [&]{return current_selection == 22;}),
+                ftxui::Maybe(container_manage_base, [&]{return current_selection == 3;})
                 // ssh_key_add_modal([]{}, []{}),
             });
 
@@ -1465,6 +1607,7 @@ int main() {
         if(bool_update_components){
             get_ssh_edit_components(ssh_key_dynamic_list);
             update_vm_components(vm_edit_components);
+            update_container_framework(manage_containers);
             bool_update_components = false;
         }
         if(bool_launch_system_execution){

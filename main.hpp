@@ -52,6 +52,8 @@ struct struct_user_data {
     std::vector<virtual_machine> virtual_machines;
     std::vector<ssh_key> public_keys;
     std::vector<std::pair<std::string, std::string>> cloud_images;
+    bool containers_enabled;
+    std::string container_path;
 };
 
 
