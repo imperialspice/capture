@@ -81,7 +81,7 @@ allow_public_ssh_keys: true
 disable_root: true)";
 
 std::string vm_get_current_state = R"(virsh dominfo {} 2>/dev/null | grep State | awk '{{for (i = 2; i <= NF; i++) {{printf "%s ", $i}}; printf "\n"}}')";
-std::string podman_add_remote = R"(podman system connection add [my-remote-machine] --identity [your private key] ssh://[username]@[server_ip]{})";
+std::string podman_add_remote = R"(podman system connection add [my-remote-machine] --identity [your private key] ssh://[username]@[server_ip]/{})";
 
 
 /*
@@ -770,17 +770,18 @@ int main() {
     const auto update_container_framework = [&](ftxui::Component manage_containers){
         log_vector.push_back("Container Framework Update");
         manage_containers->DetachAllChildren();
+        function_enable_containers();
         // check if containers have been enabled
         if(user_data.containers_enabled){
             std::string formated_add = std::vformat(podman_add_remote, std::make_format_args(user_data.container_path));
-            manage_containers->Add(ftxui::Renderer(ftxui::Container::Horizontal({}),
-            [&]{
-                return ftxui::vbox({
+            std::string container_socket = std::vformat("Socket Path: {}", std::make_format_args(user_data.container_path));
+            manage_containers->Add(ftxui::Renderer(ftxui::Container::Vertical({}),
+            [&, formated_add, container_socket]{
+                return ftxui::vflow({
                     ftxui::text("Containers Enabled"),
-                    ftxui::text("Socket path:"),
-                    ftxui::text(user_data.container_path),
+                    ftxui::text(container_socket),
                     ftxui::text("This can be used in the podman system connection add command to add a container runtime."),
-                    ftxui::text(formated_add)
+                    ftxui::vflow({ftxui::paragraph(formated_add)})
                 });
             }));
         }
