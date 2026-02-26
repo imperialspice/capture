@@ -38,7 +38,9 @@
 // write log out and exit 
 void flush_log(){
     std::filesystem::path logfile_file_path("/tmp");
-    logfile_file_path.append(std::format("capture_logfile_{}.log", rand()));
+    std::string random_filename = std::tmpnam(nullptr);
+    logfile_file_path.append(std::format("capture_logfile_{}.log", random_filename));
+
     std::ofstream log_file(logfile_file_path);
     if(log_file){
         for(auto &log : log_vector){
@@ -715,8 +717,14 @@ int main() {
     */
     const auto enable_containers = ftxui::Button("Enable Containers", [&]{
         open_execute_read("loginctl enable-linger");
-        open_execute_read("systemctl --user enable podman.sock");
-        open_execute_read("systemctl --user start podman.sock");
+        log_vector.push_back(current_command_output);
+        log_vector.push_back(current_command_err);
+        open_execute_read(R"("XDG_RUNTIME_DIR="/run/user/$UID" DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus" systemctl --user enable podman.sock)");
+        log_vector.push_back(current_command_output);
+        log_vector.push_back(current_command_err);
+        open_execute_read(R"("XDG_RUNTIME_DIR="/run/user/$UID" DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus" systemctl --user start podman.sock)");
+        log_vector.push_back(current_command_output);
+        log_vector.push_back(current_command_err);
         user_data.containers_enabled = true;
         bool_update_components = true;
         return;
