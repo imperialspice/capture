@@ -189,6 +189,7 @@ struct_general_config load_general_config(std::string_view directory_path, std::
 struct_user_data load_structure(std::string_view directory_path, std::string_view file_name){
     std::filesystem::path config_file_path(directory_path);
     config_file_path.append(file_name);
+    
     std::ifstream config_file(config_file_path);
     
 
