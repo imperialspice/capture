@@ -38,7 +38,7 @@
 // write log out and exit 
 void flush_log(){
     std::filesystem::path logfile_file_path("/tmp");
-    std::string random_filename = std::tmpnam(nullptr);
+    std::string random_filename = "_last_log_";
     logfile_file_path.append(std::format("capture_logfile_{}.log", random_filename));
 
     std::ofstream log_file(logfile_file_path);
