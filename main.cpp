@@ -546,6 +546,7 @@ bool vm_edit_autostart;
 
 int main() {
 
+    signal(SIGINT, capture_flush_log);
     signal(SIGTERM, capture_flush_log);
 
     struct_general_config general_config = load_general_config("/etc", "capture.conf");
