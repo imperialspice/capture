@@ -682,6 +682,8 @@ int main() {
     }, ftxui::ButtonOption::Ascii());
     const auto refresh_button = ftxui::Button("Refresh", [&]{bool_update_components = true;}, ftxui::ButtonOption::Ascii());
     
+    const auto back_component_vm = ftxui::Button("Back", [&]{current_selection = -1;}, ftxui::ButtonOption::Ascii());
+
     ftxui::Component vm_edit_components(ftxui::Container::Vertical({})); // editable components list for the vms.
     
     const auto manage_vm_elements = [&]{
@@ -690,7 +692,7 @@ int main() {
                     add_vm_button->Render(),
                     ftxui::filler(),
                     refresh_button->Render(),
-                    back_button->Render()
+                    back_component_vm->Render()
                 },{
                     .direction = ftxui::FlexboxConfig::Direction::Row,
                     .align_items = ftxui::FlexboxConfig::AlignItems::Center,
@@ -709,7 +711,7 @@ int main() {
         ftxui::Container::Horizontal({
         add_vm_button,
         refresh_button,
-        back_button,
+        back_component_vm,
         }),
         vm_edit_components
     });
