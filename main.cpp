@@ -577,7 +577,7 @@ int main() {
     };
 
     const auto get_test_button = [&]{
-        return ftxui::Button("Launch Local Shell", [&]{bool_launch_system_execution = true; launch_system_execution_path = "bash -c reset"; }, ftxui::ButtonOption::Ascii());
+        return ftxui::Button("Launch Local Shell", [&]{bool_launch_system_execution = true; launch_system_execution_path = "bash"; }, ftxui::ButtonOption::Ascii());
     };
 
     const auto get_back_button = [&]{
