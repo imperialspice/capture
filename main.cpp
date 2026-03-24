@@ -575,7 +575,7 @@ int main() {
     };
 
     const auto get_test_button = [&]{
-        return ftxui::Button("Launch Local Shell", [&]{bool_launch_system_execution = true; launch_system_execution_path = "/bin/bash -c reset"; }, ftxui::ButtonOption::Ascii());
+        return ftxui::Button("Launch Local Shell", [&]{bool_launch_system_execution = true; launch_system_execution_path = "bash -c reset"; }, ftxui::ButtonOption::Ascii());
     };
 
     const auto get_back_button = [&]{
@@ -707,7 +707,7 @@ int main() {
         ftxui::Container::Horizontal({
         add_vm_button,
         refresh_button,
-        back_button
+        back_button,
         }),
         vm_edit_components
     });
