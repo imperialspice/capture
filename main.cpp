@@ -58,8 +58,8 @@ void capture_flush_log(int signum){
 
 std::string container_backup_script = R"(
 mkdir -p $HOME/container_backups
-podman ps -q | xargs -I {} bash -c 'podman export {} -o $HOME/backups/{}-$(date +%Y%m%d-%H%M%S).tar'
-podman ps -q | xargs -I {} bash -c 'podman inspect {} > $HOME/backups/{}-$(date +%Y%m%d-%H%M%S).json'
+podman ps -q | xargs -I {} bash -c 'podman export {} -o $HOME/backups/{}-\$(date +%Y%m%d-%H%M%S).tar'
+podman ps -q | xargs -I {} bash -c 'podman inspect {} > $HOME/backups/{}-\$(date +%Y%m%d-%H%M%S).json'
 )";
 
 std::string vm_create_template = R"(virt-install \
@@ -552,7 +552,7 @@ bool vm_edit_autostart;
 
 
 int main() {
-
+    srand(time(0));
     signal(SIGINT, capture_flush_log);
     signal(SIGTERM, capture_flush_log);
 
