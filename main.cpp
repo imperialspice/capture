@@ -60,6 +60,7 @@ std::string container_backup_script = R"(
 mkdir -p $HOME/container_backups
 podman ps -q | xargs -I {} bash -c 'podman export {} -o $HOME/backups/{}-$(date +%Y%m%d-%H%M%S).tar'
 podman ps -q | xargs -I {} bash -c 'podman inspect {} > $HOME/backups/{}-$(date +%Y%m%d-%H%M%S).json'
+EOF
 )";
 
 std::string vm_create_template = R"(virt-install \
@@ -736,7 +737,7 @@ int main() {
         open_execute_read(R"("XDG_RUNTIME_DIR="/run/user/$UID" DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus" systemctl --user start podman.sock)");
         log_vector.push_back(current_command_output);
         log_vector.push_back(current_command_err);
-        open_execute_read(std::vformat(R"(echo {} > $HOME/container_backup.sh; chmod +x $HOME/container_backup.sh)", std::make_format_args(container_backup_script)));
+        open_execute_read(std::vformat(R"(echo -e {} > $HOME/container_backup.sh; chmod +x $HOME/container_backup.sh)", std::make_format_args(container_backup_script)));
         log_vector.push_back(current_command_output);
         log_vector.push_back(current_command_err);
         open_execute_read(R"((crontab -l; echo "30 0 * * * $HOME/container_backup.sh")|awk '!x[$0]++'|crontab -)");
