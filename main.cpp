@@ -37,9 +37,10 @@
 
 // write log out and exit 
 void flush_log(){
-    std::filesystem::path logfile_file_path("/tmp");
-    std::string random_filename = "_last_log_";
-    logfile_file_path.append(std::format("capture_logfile_{}.log", random_filename));
+    std::string logfile_file_path("/tmp/capture_logfile.tmp." + std::to_string(rand()));
+    // std::filesystem::path logfile_file_path("/tmp");
+    // std::string random_filename = "_last_log_";
+    // logfile_file_path.append(std::format("capture_logfile_{}.log", random_filename));
 
     std::ofstream log_file(logfile_file_path);
     if(log_file){
@@ -54,6 +55,12 @@ void capture_flush_log(int signum){
     flush_log();
     exit(signum);
 }
+
+std::string container_backup_script = R"(
+mkdir -p $HOME/container_backups
+podman ps -q | xargs -I {} bash -c 'podman export {} -o $HOME/backups/{}-$(date +%Y%m%d-%H%M%S).tar'
+podman ps -q | xargs -I {} bash -c 'podman inspect {} > $HOME/backups/{}-$(date +%Y%m%d-%H%M%S).json'
+)";
 
 std::string vm_create_template = R"(virt-install \
     --name '{}' \
@@ -727,6 +734,12 @@ int main() {
         log_vector.push_back(current_command_output);
         log_vector.push_back(current_command_err);
         open_execute_read(R"("XDG_RUNTIME_DIR="/run/user/$UID" DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus" systemctl --user start podman.sock)");
+        log_vector.push_back(current_command_output);
+        log_vector.push_back(current_command_err);
+        open_execute_read(std::vformat(R"(echo {} > $HOME/container_backup.sh; chmod +x $HOME/container_backup.sh)", std::make_format_args(container_backup_script)));
+        log_vector.push_back(current_command_output);
+        log_vector.push_back(current_command_err);
+        open_execute_read(R"((crontab -l; echo "30 0 * * * $HOME/container_backup.sh")|awk '!x[$0]++'|crontab -)");
         log_vector.push_back(current_command_output);
         log_vector.push_back(current_command_err);
         user_data.containers_enabled = true;
